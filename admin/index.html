@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>가보고 운영 콘솔</title>
+<style>
+  :root{
+    --primary:#F2A900; --on-primary:#3D2B00; --primary-soft:#FFF3D6;
+    --bg:#FFFDF7; --surface:#FFF8EC; --border:#F1E7D4;
+    --text:#2A2521; --text2:#9A8E7C; --text3:#BEB3A2;
+    --danger:#D94A3D; --success:#2FA36B; --info:#3E7FC1;
+    --r-sm:8px; --r-md:12px; --r-lg:16px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text); line-height:1.5;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+    -webkit-text-size-adjust:100%;
+  }
+  button{font:inherit; cursor:pointer}
+  input,select,textarea{font:inherit; color:var(--text)}
+  a{color:#B07D00}
+
+  /* ── 공통 ── */
+  .wrap{max-width:1100px; margin:0 auto; padding:0 16px}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px}
+  .btn{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    border-radius:var(--r-md); padding:8px 14px; font-weight:700; font-size:14px;
+  }
+  .btn:hover{background:var(--primary-soft)}
+  .btn-primary{background:var(--primary); border-color:var(--primary); color:var(--on-primary)}
+  .btn-primary:hover{filter:brightness(1.05); background:var(--primary)}
+  .btn-danger{border-color:#E6B5AE; color:var(--danger)}
+  .btn-danger:hover{background:#FDF1EF}
+  .btn-sm{padding:5px 10px; font-size:12.5px; border-radius:var(--r-sm)}
+  .btn:disabled{opacity:.45; cursor:not-allowed}
+  .input{
+    width:100%; background:var(--bg); border:1px solid var(--border);
+    border-radius:var(--r-md); padding:10px 12px; font-size:14px;
+  }
+  .input:focus{outline:2px solid var(--primary); outline-offset:-1px}
+  .muted{color:var(--text2); font-size:13px}
+  .tiny{color:var(--text3); font-size:12px}
+  .row{display:flex; align-items:center; gap:10px}
+  .between{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .grow{flex:1; min-width:0}
+  .trunc{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .pill{
+    display:inline-block; padding:2px 8px; border-radius:999px;
+    font-size:11px; font-weight:800; line-height:1.6;
+  }
+  .pill-admin{background:var(--primary); color:var(--on-primary)}
+  .pill-ban{background:var(--danger); color:#fff}
+  .pill-hide{background:#8A6F3E; color:#fff}
+  .pill-live{background:#FDE8E5; color:var(--danger)}
+  .pill-free{background:var(--primary-soft); color:#8A6100}
+  .empty{text-align:center; color:var(--text2); padding:44px 16px}
+
+  /* ── 로그인 / 설정 ── */
+  .gate{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px}
+  .gate .card{width:100%; max-width:400px}
+  .gate h1{font-size:22px; margin:0 0 4px}
+  .gate label{display:block; font-size:13px; font-weight:700; margin:14px 0 5px}
+  .err{
+    background:#FDF1EF; border:1px solid #E6B5AE; color:var(--danger);
+    border-radius:var(--r-md); padding:10px 12px; font-size:13px; margin-top:12px;
+  }
+
+  /* ── 헤더 / 탭 ── */
+  header{background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10}
+  .brand{font-size:17px; font-weight:900; letter-spacing:-.3px}
+  .hdr{display:flex; align-items:center; justify-content:space-between; height:56px; gap:12px}
+  nav{display:flex; gap:4px; overflow-x:auto; padding-bottom:8px; scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  .tab{
+    border:none; background:none; color:var(--text2); font-weight:700; font-size:14px;
+    padding:8px 13px; border-radius:var(--r-md); white-space:nowrap;
+  }
+  .tab:hover{background:var(--primary-soft); color:var(--text)}
+  .tab.on{background:var(--primary); color:var(--on-primary); font-weight:800}
+  .badge{
+    display:inline-block; background:var(--danger); color:#fff; border-radius:999px;
+    font-size:10.5px; font-weight:900; padding:1px 6px; margin-left:5px; vertical-align:1px;
+  }
+  main{padding:20px 0 60px}
+  h2.sec{font-size:16px; margin:0 0 12px}
+
+  /* ── 통계 ── */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
+  .stat{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:14px; text-align:center}
+  .stat b{display:block; font-size:26px; font-weight:900; letter-spacing:-.5px}
+  .stat span{font-size:12.5px; color:var(--text2)}
+  .stat.alert b{color:var(--danger)}
+  @media(max-width:640px){ .stats{grid-template-columns:repeat(2,1fr)} }
+
+  /* ── 리스트 ── */
+  .list{display:flex; flex-direction:column; gap:8px; margin-top:12px}
+  .item{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); padding:12px}
+  .avatar{
+    width:38px; height:38px; border-radius:50%; background:var(--primary); color:var(--on-primary);
+    display:flex; align-items:center; justify-content:center; font-weight:900; flex:none;
+  }
+  .thumb{width:52px; height:70px; border-radius:var(--r-sm); object-fit:cover; background:var(--bg); flex:none}
+  .filters{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .chip{
+    border:1px solid var(--border); background:var(--surface); color:var(--text2);
+    border-radius:999px; padding:5px 12px; font-size:12.5px; font-weight:700;
+  }
+  .chip.on{background:var(--primary); border-color:var(--primary); color:var(--on-primary); font-weight:800}
+  .acts{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+
+  /* ── 차트 ── */
+  .chart{display:flex; align-items:flex-end; gap:5px; height:110px; margin-top:6px}
+  .bar{flex:1; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; min-width:0}
+  .bar i{display:block; background:var(--primary); border-radius:3px 3px 0 0; min-height:2px}
+  .bar i.up{background:#9CC7E8}
+  .bar em{font-size:9.5px; color:var(--text3); font-style:normal; text-align:center; white-space:nowrap}
+  .legend{display:flex; gap:14px; font-size:12px; color:var(--text2); margin-top:8px}
+  .legend s{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:-1px}
+
+  /* ── 모달 ── */
+  .backdrop{
+    position:fixed; inset:0; background:rgba(30,24,16,.45); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  .modal{background:var(--bg); border-radius:var(--r-lg); width:100%; max-width:460px; max-height:86vh; overflow:auto; padding:18px}
+  .modal h3{margin:0 0 4px; font-size:17px}
+  .kv{display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--border); font-size:14px}
+  .kv:last-of-type{border-bottom:none}
+  .kv span{color:var(--text2); flex:none}
+  .kv b{font-weight:700; text-align:right; word-break:break-all}
+  video{width:100%; border-radius:var(--r-md); background:#000; max-height:60vh}
+
+  /* ── 토스트 ── */
+  #toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    background:var(--text); color:#fff; padding:11px 18px; border-radius:999px;
+    font-size:13.5px; font-weight:700; z-index:99; opacity:0; pointer-events:none; transition:opacity .18s;
+    max-width:90vw; text-align:center;
+  }
+  #toast.on{opacity:1}
+  .spin{text-align:center; color:var(--text2); padding:40px; font-size:14px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* ============================================================
+   가보고 운영 콘솔 — 단일 파일 정적 웹앱
+   보안 모델: 이 페이지는 아무 권한도 갖지 않는다. 모든 운영 동작은
+   Supabase의 admin_* RPC(security definer)를 호출하며, 서버가 매 호출마다
+   is_admin()을 검증한다. 비운영자가 이 URL을 열어도 목록조차 받지 못한다.
+   키는 레포에 두지 않고 최초 1회 입력받아 이 브라우저에만 저장한다.
+   ============================================================ */
+
+const LS = { url:'gabogo.sb.url', key:'gabogo.sb.key' };
+const DEFAULT_URL = 'https://ezqrwvccdluepxlrzhac.supabase.co';
+
+let sb = null;              // supabase 클라이언트
+let me = null;              // 로그인 사용자
+let tab = 'dash';
+const cache = {};           // 탭별 데이터 캐시
+
+const $ = (s, r=document) => r.querySelector(s);
+const app = $('#app');
+
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const fmtD = (iso) => { if(!iso) return '—'; const d=new Date(iso);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; };
+const fmtDT = (iso) => { if(!iso) return '—'; const d=new Date(iso);
+  return `${fmtD(iso)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const n = (v) => Number(v ?? 0).toLocaleString();
+
+function toast(msg, ms=2200){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('on'), ms);
+}
+function rpcErr(e){
+  const m = e?.message || String(e);
+  if (m.includes('not_admin')) return '운영자 권한이 없는 계정이에요.';
+  if (m.includes('cannot_demote_self')) return '자기 자신은 운영자에서 내릴 수 없어요.';
+  if (m.includes('Could not find the function') || m.includes('does not exist'))
+    return '서버 함수가 아직 없어요. supabase/admin_console.sql을 실행해 주세요.';
+  return m;
+}
+
+/* ── 1) 접속 설정 ────────────────────────────────────────── */
+function renderSetup(err){
+  app.innerHTML = `
+  <div class="gate"><div class="card">
+    <h1>가보고 운영 콘솔</h1>
+    <p class="muted">이 브라우저에서 처음 여셨네요. 서버 접속 정보를 한 번만 입력하면 이후로는 바로 열립니다.</p>
+    <label>Supabase URL</label>
+    <input class="input" id="su" value="${DEFAULT_URL}" autocomplete="off" spellcheck="false" />
+    <label>anon public key</label>
+    <input class="input" id="sk" placeholder="eyJhbGciOiJI…" autocomplete="off" spellcheck="false" />
+    <p class="tiny" style="margin-top:8px">
+      Supabase 대시보드 → Project Settings → API → <b>anon public</b> 값을 복사해 붙여넣으세요.
+      이 값은 앱에도 들어 있는 공개 키이며, 이 브라우저에만 저장됩니다.
+    </p>
+    ${err ? `<div class="err">${esc(err)}</div>` : ''}
+    <button class="btn btn-primary" id="sgo" style="width:100%;margin-top:14px">저장하고 계속</button>
+  </div></div>`;
+  $('#sgo').onclick = () => {
+    const u = $('#su').value.trim().replace(/\/+$/,'');
+    const k = $('#sk').value.trim();
+    if(!/^https:\/\/.+\.supabase\.co$/.test(u)) return renderSetup('URL 형식을 확인해 주세요.');
+    if(k.length < 40) return renderSetup('anon key를 붙여넣어 주세요.');
+    localStorage.setItem(LS.url, u); localStorage.setItem(LS.key, k);
+    boot();
+  };
+}
+
+/* ── 2) 로그인 ───────────────────────────────────────────── */
+function renderLogin(err){
+  app.innerHTML = `
+  <div class="gate"><div class="card">
+    <h1>가보고 운영 콘솔</h1>
+    <p class="muted">운영자 계정으로 로그인하세요.</p>
+    <label>이메일</label>
+    <input class="input" id="le" type="email" autocomplete="username" />
+    <label>비밀번호</label>
+    <input class="input" id="lp" type="password" autocomplete="current-password" />
+    ${err ? `<div class="err">${esc(err)}</div>` : ''}
+    <button class="btn btn-primary" id="lgo" style="width:100%;margin-top:16px">로그인</button>
+    <p class="tiny" style="margin-top:14px">
+      카카오로만 가입한 계정은 여기서 로그인할 수 없어요. 이메일 계정을 운영자로 지정하거나,
+      Supabase 대시보드 → Authentication → Users 에서 비밀번호를 설정해 주세요.
+    </p>
+    <button class="btn btn-sm" id="reset" style="width:100%;margin-top:10px">접속 정보 다시 입력</button>
+  </div></div>`;
+  const go = async () => {
+    const btn = $('#lgo'); btn.disabled = true; btn.textContent = '로그인 중…';
+    const { error } = await sb.auth.signInWithPassword({
+      email: $('#le').value.trim(), password: $('#lp').value,
+    });
+    if (error) return renderLogin(error.message.includes('Invalid') ? '이메일 또는 비밀번호가 올바르지 않아요.' : error.message);
+    boot();
+  };
+  $('#lgo').onclick = go;
+  $('#lp').onkeydown = (e) => { if(e.key==='Enter') go(); };
+  $('#reset').onclick = () => { localStorage.removeItem(LS.url); localStorage.removeItem(LS.key); boot(); };
+}
+
+/* ── 3) 셸 ───────────────────────────────────────────────── */
+const TABS = [
+  ['dash','대시보드'], ['members','회원'], ['reports','신고'],
+  ['shorts','숏폼'], ['lines','문구'], ['popups','팝업'], ['sounds','사운드'],
+];
+
+function renderShell(){
+  const rc = cache.overview?.report_count ?? 0;
+  app.innerHTML = `
+    <header><div class="wrap">
+      <div class="hdr">
+        <div class="brand">가보고 <span style="color:var(--text2);font-weight:700">운영 콘솔</span></div>
+        <div class="row">
+          <span class="muted trunc" style="max-width:180px">${esc(me?.email ?? '')}</span>
+          <button class="btn btn-sm" id="out">로그아웃</button>
+        </div>
+      </div>
+      <nav>${TABS.map(([id,label]) => `
+        <button class="tab ${tab===id?'on':''}" data-tab="${id}">${label}${
+          id==='reports' && rc>0 ? `<span class="badge">${rc}</span>` : ''}</button>`).join('')}
+      </nav>
+    </div></header>
+    <main><div class="wrap" id="view"><div class="spin">불러오는 중…</div></div></main>`;
+  $('#out').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  app.querySelectorAll('.tab').forEach((b) => b.onclick = () => { tab = b.dataset.tab; renderShell(); route(); });
+}
+const view = (html) => { $('#view').innerHTML = html; };
+
+async function route(){
+  try{
+    if (tab==='dash') await viewDash();
+    else if (tab==='members') await viewMembers();
+    else if (tab==='reports') await viewReports();
+    else if (tab==='shorts') await viewShorts();
+    else if (tab==='lines') await viewLines();
+    else if (tab==='popups') await viewPopups();
+    else if (tab==='sounds') await viewSounds();
+  }catch(e){
+    view(`<div class="card"><b>불러오지 못했어요</b><p class="muted">${esc(rpcErr(e))}</p>
+      <button class="btn btn-sm" onclick="route()">다시 시도</button></div>`);
+  }
+}
+
+/* ── 4) 대시보드 ─────────────────────────────────────────── */
+async function viewDash(){
+  const [ov, stats] = await Promise.all([
+    sb.rpc('admin_overview'),
+    sb.rpc('admin_daily_stats', { p_days: 14 }),
+  ]);
+  if (ov.error) throw ov.error;
+  const o = (ov.data ?? [])[0] ?? {};
+  cache.overview = o;
+
+  const days = stats.error ? [] : (stats.data ?? []);
+  const max = Math.max(1, ...days.map((d) => Math.max(d.signups, d.uploads)));
+  const chart = days.length ? `
+    <div class="card" style="margin-top:16px">
+      <div class="between"><b>최근 14일 추이</b>
+        <span class="tiny">가입 ${n(days.reduce((s,d)=>s+Number(d.signups),0))} · 업로드 ${n(days.reduce((s,d)=>s+Number(d.uploads),0))}</span></div>
+      <div class="chart">${days.map((d) => `
+        <div class="bar" title="${d.d} · 가입 ${d.signups} · 업로드 ${d.uploads}">
+          <i class="up" style="height:${Math.round(Number(d.uploads)/max*70)}px"></i>
+          <i style="height:${Math.round(Number(d.signups)/max*70)}px"></i>
+          <em>${String(d.d).slice(8)}</em>
+        </div>`).join('')}</div>
+      <div class="legend">
+        <span><s style="background:var(--primary)"></s>가입</span>
+        <span><s style="background:#9CC7E8"></s>업로드</span>
+      </div>
+    </div>` : `<div class="card" style="margin-top:16px"><b>추이 그래프</b>
+      <p class="muted">서버 함수가 아직 없어요. <code>supabase/admin_console.sql</code>을 실행하면 여기에 14일 그래프가 나타납니다.</p></div>`;
+
+  view(`
+    <div class="stats">
+      <div class="stat"><b>${n(o.members)}</b><span>회원</span></div>
+      <div class="stat"><b>${n(o.shortform_count)}</b><span>숏폼</span></div>
+      <div class="stat ${Number(o.report_count)>0?'alert':''}"><b>${n(o.report_count)}</b><span>처리 대기 신고</span></div>
+      <div class="stat"><b>${n(o.banned_count)}</b><span>정지 회원</span></div>
+    </div>
+    ${Number(o.report_count) > 0 ? `
+      <div class="card" style="margin-top:12px;border-color:#E6B5AE;background:#FDF1EF">
+        <div class="between"><div><b>처리 대기 중인 신고가 ${n(o.report_count)}건 있어요</b>
+          <p class="muted" style="margin:2px 0 0">신고 3건이 쌓인 영상은 자동으로 숨겨진 상태예요.</p></div>
+          <button class="btn btn-primary btn-sm" onclick="tab='reports';renderShell();route()">신고 처리</button></div>
+      </div>` : ''}
+    <div class="card" style="margin-top:12px">
+      <b>오늘 가입</b> <span style="font-size:22px;font-weight:900;margin-left:8px">${n(o.today_signups)}</span>
+      <p class="tiny" style="margin:6px 0 0">비공개 테스트는 테스터 12명이 14일 연속 참여해야 정식 출시 심사를 넣을 수 있어요.</p>
+    </div>
+    ${chart}`);
+}
+
+/* ── 5) 회원 ─────────────────────────────────────────────── */
+const mState = { q:'', filter:'all', limit:30 };
+async function viewMembers(){
+  if (!cache.members) {
+    const { data, error } = await sb.rpc('admin_list_members');
+    if (error) throw error;
+    cache.members = data ?? [];
+  }
+  const kw = mState.q.trim().toLowerCase();
+  const list = cache.members
+    .filter((m) => mState.filter==='banned' ? m.banned : mState.filter==='admin' ? m.is_admin : true)
+    .filter((m) => kw ? (m.nickname||'').toLowerCase().includes(kw) : true);
+  const shown = list.slice(0, mState.limit);
+
+  view(`
+    <div class="between">
+      <h2 class="sec">회원 ${n(cache.members.length)}명</h2>
+      <button class="btn btn-sm" onclick="cache.members=null;route()">새로고침</button>
+    </div>
+    <input class="input" id="mq" placeholder="닉네임 검색" value="${esc(mState.q)}" />
+    <div class="filters">
+      ${[['all',`전체 ${cache.members.length}`],['banned','정지'],['admin','운영자']].map(([id,l]) =>
+        `<button class="chip ${mState.filter===id?'on':''}" data-f="${id}">${l}</button>`).join('')}
+    </div>
+    <div class="list">
+      ${shown.map((m) => `
+        <div class="item">
+          <div class="row">
+            <div class="avatar">${esc((m.nickname||'?')[0])}</div>
+            <div class="grow">
+              <div class="row" style="gap:6px">
+                <b class="trunc">${esc(m.nickname)}</b>
+                ${m.is_admin?'<span class="pill pill-admin">운영자</span>':''}
+                ${m.banned?'<span class="pill pill-ban">정지</span>':''}
+              </div>
+              <div class="tiny">가입 ${fmtD(m.created_at)} · ${n(m.points)}P</div>
+            </div>
+            <button class="btn btn-sm" data-detail="${m.id}">상세</button>
+            ${m.is_admin ? '' : `<button class="btn btn-sm ${m.banned?'':'btn-danger'}" data-ban="${m.id}" data-v="${m.banned?0:1}">${m.banned?'정지 해제':'정지'}</button>`}
+          </div>
+        </div>`).join('')}
+      ${list.length===0 ? '<div class="empty">조건에 맞는 회원이 없어요</div>' : ''}
+      ${list.length > mState.limit ? `<button class="btn" id="more">더보기 (${shown.length}/${list.length})</button>` : ''}
+    </div>`);
+
+  const q = $('#mq');
+  q.oninput = () => { mState.q = q.value; mState.limit = 30; const p = q.selectionStart; viewMembers().then(()=>{
+    const nq = $('#mq'); nq.focus(); nq.setSelectionRange(p,p); }); };
+  $('#view').querySelectorAll('[data-f]').forEach((b)=> b.onclick=()=>{ mState.filter=b.dataset.f; mState.limit=30; viewMembers(); });
+  const more = $('#more'); if (more) more.onclick = () => { mState.limit += 30; viewMembers(); };
+  $('#view').querySelectorAll('[data-ban]').forEach((b)=> b.onclick = () => toggleBan(b.dataset.ban, b.dataset.v==='1'));
+  $('#view').querySelectorAll('[data-detail]').forEach((b)=> b.onclick = () => memberDetail(b.dataset.detail));
+}
+
+async function toggleBan(id, ban){
+  const m = cache.members.find((x)=>x.id===id);
+  if (!confirm(`${m?.nickname}님을 ${ban?'정지':'정지 해제'}할까요?${ban?'\n\n정지하면 이 회원의 숏폼이 피드에서 숨겨지고 업로드가 막힙니다.':''}`)) return;
+  const { error } = await sb.rpc('admin_set_ban', { p_user:id, p_banned:ban });
+  if (error) return toast(rpcErr(error), 3500);
+  m.banned = ban; cache.overview = null;
+  toast(ban ? '정지했어요' : '정지를 해제했어요'); viewMembers();
+}
+
+async function memberDetail(id){
+  openModal('<div class="spin">불러오는 중…</div>');
+  const { data, error } = await sb.rpc('admin_member_detail', { p_user:id });
+  if (error) return openModal(`<h3>회원 상세</h3><p class="muted">${esc(rpcErr(error))}</p>
+    <button class="btn" onclick="closeModal()" style="width:100%;margin-top:14px">닫기</button>`);
+  const d = (data ?? [])[0];
+  if (!d) return openModal('<p class="muted">회원을 찾을 수 없어요.</p>');
+  openModal(`
+    <h3>${esc(d.nickname)}</h3>
+    <p class="tiny" style="margin:0 0 12px">
+      ${d.is_admin?'<span class="pill pill-admin">운영자</span> ':''}${d.banned?'<span class="pill pill-ban">정지</span>':''}
+    </p>
+    <div class="kv"><span>이메일</span><b>${esc(d.email||'—')}</b></div>
+    <div class="kv"><span>로그인 방식</span><b>${d.provider==='kakao'?'카카오':'이메일'}</b></div>
+    <div class="kv"><span>가입</span><b>${fmtDT(d.created_at)}</b></div>
+    <div class="kv"><span>최근 접속</span><b>${fmtDT(d.last_sign_in_at)}</b></div>
+    <div class="kv"><span>업로드</span><b>${n(d.uploads)}개</b></div>
+    <div class="kv"><span>누른 좋아요</span><b>${n(d.likes_given)}</b></div>
+    <div class="kv"><span>받은 신고</span><b style="${Number(d.reports_against)>0?'color:var(--danger)':''}">${n(d.reports_against)}건</b></div>
+    <div class="kv"><span>보유 점수</span><b>${n(d.points)}P</b></div>
+    <div class="acts" style="margin-top:16px">
+      <button class="btn ${d.is_admin?'btn-danger':''} grow" id="mkadmin">${d.is_admin?'운영자 해제':'운영자로 지정'}</button>
+      <button class="btn grow" onclick="closeModal()">닫기</button>
+    </div>`);
+  $('#mkadmin').onclick = async () => {
+    const next = !d.is_admin;
+    if (!confirm(`${d.nickname}님을 ${next?'운영자로 지정':'운영자에서 해제'}할까요?${next?'\n\n운영자는 모든 회원 정보와 콘텐츠를 관리할 수 있습니다.':''}`)) return;
+    const { error } = await sb.rpc('admin_set_admin', { p_user:id, p_is_admin:next });
+    if (error) return toast(rpcErr(error), 3500);
+    closeModal(); cache.members = null; toast(next?'운영자로 지정했어요':'운영자에서 해제했어요'); viewMembers();
+  };
+}
+
+/* ── 6) 신고 ─────────────────────────────────────────────── */
+async function viewReports(){
+  const { data, error } = await sb.rpc('admin_list_reports');
+  if (error) throw error;
+  const rs = data ?? [];
+  view(`
+    <div class="between"><h2 class="sec">신고 ${rs.length}건</h2>
+      <button class="btn btn-sm" onclick="route()">새로고침</button></div>
+    ${rs.length===0 ? '<div class="card"><div class="empty">처리할 신고가 없어요 🎉<br><span class="tiny">신고가 3건 쌓인 영상은 자동으로 숨겨지고 여기에 표시돼요.</span></div></div>' : ''}
+    <div class="list">${rs.map((r) => `
+      <div class="item">
+        <div class="row" style="align-items:flex-start">
+          ${r.thumbnail ? `<img class="thumb" src="${esc(r.thumbnail)}" alt="" />`
+                        : '<div class="thumb"></div>'}
+          <div class="grow">
+            <div class="row" style="gap:6px">
+              <b class="trunc">🚩 ${esc(r.reason)}</b>
+              ${r.auto_hidden ? '<span class="pill pill-hide">자동 숨김</span>' : ''}
+            </div>
+            <div class="muted trunc">${esc(r.place || '삭제된 숏폼')}${r.author?` · @${esc(r.author)}`:''}</div>
+            <div class="tiny">신고자 ${esc(r.reporter)} · ${fmtDT(r.created_at)}</div>
+          </div>
+        </div>
+        <div class="acts">
+          ${r.shortform_id ? `<button class="btn btn-sm" data-play="${r.shortform_id}">영상 확인</button>` : ''}
+          <button class="btn btn-sm" data-ok="${r.report_id}" data-sf="${r.shortform_id||''}">문제 없음</button>
+          ${r.shortform_id ? `<button class="btn btn-sm btn-danger" data-del="${r.shortform_id}" data-t="${esc(r.place||'숏폼')}">영상 삭제</button>` : ''}
+        </div>
+      </div>`).join('')}</div>`);
+
+  $('#view').querySelectorAll('[data-play]').forEach((b)=> b.onclick = () => playShort(b.dataset.play));
+  $('#view').querySelectorAll('[data-ok]').forEach((b)=> b.onclick = async () => {
+    const sf = b.dataset.sf;
+    if (!confirm(sf ? '이 영상을 정상으로 판정할까요?\n\n자동 숨김이 해제되고 이 영상의 신고가 모두 닫힙니다.' : '이 신고를 닫을까요?')) return;
+    const { error } = sf ? await sb.rpc('admin_restore_shortform', { p_id: sf })
+                         : await sb.rpc('admin_dismiss_report', { p_report: Number(b.dataset.ok) });
+    if (error) return toast(rpcErr(error), 3500);
+    cache.overview = null; toast('처리했어요'); route();
+  });
+  $('#view').querySelectorAll('[data-del]').forEach((b)=> b.onclick = () => delShort(b.dataset.del, b.dataset.t));
+}
+
+async function delShort(id, title){
+  if (!confirm(`"${title}" 영상을 삭제할까요?\n\n관련 신고도 함께 정리되며, 되돌릴 수 없습니다.`)) return;
+  const { error } = await sb.rpc('admin_delete_shortform', { p_id:id });
+  if (error) return toast(rpcErr(error), 3500);
+  cache.overview = null; closeModal(); toast('삭제했어요'); route();
+}
+
+/* ── 7) 숏폼 전체 ────────────────────────────────────────── */
+const sState = { kind:null, offset:0, rows:[] };
+async function viewShorts(reset=true){
+  if (reset) { sState.offset = 0; sState.rows = []; }
+  const { data, error } = await sb.rpc('admin_list_shortforms',
+    { p_limit:30, p_offset:sState.offset, p_kind:sState.kind });
+  if (error) throw error;
+  sState.rows = sState.rows.concat(data ?? []);
+  const rows = sState.rows;
+
+  view(`
+    <div class="between"><h2 class="sec">숏폼 관리</h2>
+      <button class="btn btn-sm" onclick="viewShorts(true)">새로고침</button></div>
+    <div class="filters">
+      ${[[null,'전체'],['live','실시간'],['free','자유']].map(([k,l]) =>
+        `<button class="chip ${sState.kind===k?'on':''}" data-k="${k??''}">${l}</button>`).join('')}
+    </div>
+    <div class="list">${rows.map((s) => `
+      <div class="item">
+        <div class="row" style="align-items:flex-start">
+          ${s.thumbnail ? `<img class="thumb" src="${esc(s.thumbnail)}" alt="" />` : '<div class="thumb"></div>'}
+          <div class="grow">
+            <div class="row" style="gap:6px">
+              <span class="pill ${s.kind==='live'?'pill-live':'pill-free'}">${s.kind==='live'?'실시간':'자유'}</span>
+              ${s.auto_hidden?'<span class="pill pill-hide">숨김</span>':''}
+              ${Number(s.report_count)>0?`<span class="pill pill-ban">신고 ${s.report_count}</span>`:''}
+              ${s.author_banned?'<span class="pill pill-ban">정지 회원</span>':''}
+            </div>
+            <b class="trunc" style="display:block;margin-top:3px">${esc(s.place || '장소 없음')}</b>
+            <div class="tiny">@${esc(s.author||'탈퇴')} · ${fmtDT(s.created_at)} · ${s.duration_sec ?? '?'}초
+              · 👍${n(s.likes)} 👁${n(s.views)} ⭐${n(s.score)}</div>
+            ${s.caption ? `<div class="muted trunc">${esc(s.caption)}</div>` : ''}
+          </div>
+        </div>
+        <div class="acts">
+          <button class="btn btn-sm" data-play="${s.id}">재생</button>
+          <button class="btn btn-sm" data-hide="${s.id}" data-v="${s.auto_hidden?0:1}">${s.auto_hidden?'다시 공개':'숨기기'}</button>
+          <button class="btn btn-sm btn-danger" data-del="${s.id}" data-t="${esc(s.place||'숏폼')}">삭제</button>
+        </div>
+      </div>`).join('')}
+      ${rows.length===0 ? '<div class="empty">숏폼이 없어요</div>' : ''}
+      ${(data??[]).length===30 ? '<button class="btn" id="more">더보기</button>' : ''}
+    </div>`);
+
+  $('#view').querySelectorAll('[data-k]').forEach((b)=> b.onclick = () => {
+    sState.kind = b.dataset.k || null; viewShorts(true); });
+  const more = $('#more'); if (more) more.onclick = () => { sState.offset += 30; viewShorts(false); };
+  $('#view').querySelectorAll('[data-play]').forEach((b)=> b.onclick = () => playShort(b.dataset.play));
+  $('#view').querySelectorAll('[data-del]').forEach((b)=> b.onclick = () => delShort(b.dataset.del, b.dataset.t));
+  $('#view').querySelectorAll('[data-hide]').forEach((b)=> b.onclick = async () => {
+    const hide = b.dataset.v==='1';
+    const { error } = await sb.rpc('admin_set_hidden', { p_id:b.dataset.hide, p_hidden:hide });
+    if (error) return toast(rpcErr(error), 3500);
+    toast(hide ? '숨겼어요 — 피드에서 내려갑니다' : '다시 공개했어요'); viewShorts(true);
+  });
+}
+
+/* 영상 재생 — 목록에 이미 받아둔 URL 우선, 없으면 전체 목록에서 찾는다 */
+async function playShort(id){
+  let s = sState.rows.find((x)=>x.id===id);
+  if (!s?.video_url) {
+    openModal('<div class="spin">영상 정보를 불러오는 중…</div>');
+    const { data } = await sb.rpc('admin_list_shortforms', { p_limit:200, p_offset:0, p_kind:null });
+    s = (data ?? []).find((x)=>x.id===id);
+  }
+  if (!s?.video_url) return openModal(`<h3>영상 없음</h3>
+    <p class="muted">영상 주소를 찾지 못했어요. 이미 삭제된 숏폼일 수 있어요.</p>
+    <button class="btn" onclick="closeModal()" style="width:100%;margin-top:14px">닫기</button>`);
+  openModal(`
+    <h3 class="trunc">${esc(s.place || '숏폼')}</h3>
+    <p class="tiny" style="margin:0 0 10px">@${esc(s.author||'탈퇴')} · ${fmtDT(s.created_at)}</p>
+    <video src="${esc(s.video_url)}" controls autoplay playsinline></video>
+    ${s.caption ? `<p class="muted" style="margin-top:10px">${esc(s.caption)}</p>` : ''}
+    <div class="acts" style="margin-top:14px">
+      <button class="btn btn-danger grow" id="pdel">영상 삭제</button>
+      <button class="btn grow" onclick="closeModal()">닫기</button>
+    </div>`);
+  $('#pdel').onclick = () => delShort(id, s.place || '숏폼');
+}
+
+/* ── 8) 히어로 문구 ──────────────────────────────────────── */
+const MOODS = [['rain','☔ 비 오는 날'],['boil','🥵 무더위 (30°+)'],['morning','🌅 아침 (5~11시)'],
+               ['day','☀️ 낮 (11~17시)'],['dusk','🌇 노을 (17~20시)'],['night','🌙 밤 (20~5시)']];
+async function viewLines(){
+  const cfg = await getConfig('hero_lines') ?? {};
+  view(`
+    <h2 class="sec">발견 탭 인사말</h2>
+    <div class="card">
+      <p class="muted" style="margin-top:0">한 줄에 문구 하나씩. 문구 안에서 줄을 바꾸려면 <b>/</b> 를 넣으세요.
+        조건마다 랜덤으로 하나가 표시됩니다. 저장하면 앱에 즉시 반영돼요(앱 업데이트 불필요).</p>
+      ${MOODS.map(([id,label]) => `
+        <label style="display:block;font-size:13px;font-weight:800;margin:14px 0 5px">${label}</label>
+        <textarea class="input" data-mood="${id}" rows="4" style="resize:vertical">${
+          esc((cfg[id] ?? []).map((s)=>String(s).replace(/\n/g,' / ')).join('\n'))}</textarea>`).join('')}
+      <button class="btn btn-primary" id="save" style="width:100%;margin-top:16px">저장하고 바로 반영</button>
+    </div>`);
+  $('#save').onclick = async (e) => {
+    const out = {};
+    $('#view').querySelectorAll('[data-mood]').forEach((t) => {
+      const arr = t.value.split('\n').map((s)=>s.trim()).filter(Boolean).map((s)=>s.replace(/\s*\/\s*/g,'\n'));
+      if (arr.length) out[t.dataset.mood] = arr;
+    });
+    e.target.disabled = true; e.target.textContent = '저장 중…';
+    const err = await setConfig('hero_lines', out);
+    e.target.disabled = false; e.target.textContent = '저장하고 바로 반영';
+    toast(err ?? '저장했어요 — 앱에 바로 반영돼요', err?3500:2200);
+  };
+}
+
+/* ── 9) 팝업스토어 ───────────────────────────────────────── */
+async function viewPopups(){
+  const list = (await getConfig('popups')) ?? [];
+  const today = new Date().toISOString().slice(0,10);
+  view(`
+    <h2 class="sec">팝업스토어</h2>
+    <div class="card">
+      <p class="muted" style="margin-top:0">발견 탭 "지금 대구 팝업"과 지도 필터에 나타나고, 종료일이 지나면 자동으로 내려갑니다.
+        좌표가 있어야 지도·숏폼이 연결되므로 <b>앱 운영자 콘솔</b>에서 카카오 장소 검색으로 등록하는 걸 권합니다.
+        여기서는 기간 수정과 삭제를 할 수 있어요.</p>
+      <div class="list">${list.map((p,i) => `
+        <div class="item">
+          <div class="between">
+            <div class="grow">
+              <b class="trunc">🎪 ${esc(p.name)}</b>
+              <div class="tiny">${esc(p.venue||'')} · ${esc(p.start)} ~ ${esc(p.end)}
+                ${p.end < today ? '<span class="pill pill-ban">종료</span>' : ''}</div>
+            </div>
+            <button class="btn btn-sm btn-danger" data-del="${i}">삭제</button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <input class="input" data-s="${i}" value="${esc(p.start)}" placeholder="2026-08-01" />
+            <input class="input" data-e="${i}" value="${esc(p.end)}" placeholder="2026-08-31" />
+          </div>
+        </div>`).join('')}
+        ${list.length===0 ? '<div class="empty">등록된 팝업이 없어요</div>' : ''}
+      </div>
+      ${list.length ? '<button class="btn btn-primary" id="save" style="width:100%;margin-top:14px">기간 저장</button>' : ''}
+    </div>`);
+  $('#view').querySelectorAll('[data-del]').forEach((b)=> b.onclick = async () => {
+    const i = Number(b.dataset.del);
+    if (!confirm(`"${list[i].name}"을(를) 삭제할까요?`)) return;
+    const err = await setConfig('popups', list.filter((_,x)=>x!==i));
+    toast(err ?? '삭제했어요', err?3500:2200); if(!err) viewPopups();
+  });
+  const save = $('#save'); if (save) save.onclick = async () => {
+    const next = list.map((p,i) => ({ ...p,
+      start: $(`[data-s="${i}"]`).value.trim(), end: $(`[data-e="${i}"]`).value.trim() }));
+    if (next.some((p)=>!/^\d{4}-\d{2}-\d{2}$/.test(p.start)||!/^\d{4}-\d{2}-\d{2}$/.test(p.end)))
+      return toast('날짜는 2026-08-01 형식으로 입력해 주세요', 3000);
+    const err = await setConfig('popups', next);
+    toast(err ?? '저장했어요', err?3500:2200);
+  };
+}
+
+/* ── 10) 사운드 ──────────────────────────────────────────── */
+const SOUND_MOODS = [['bright','✨ 밝은 추천'],['hotplace','🔥 핫플 소개'],['cute','🧸 귀여움'],
+  ['funny','😂 유쾌 반전'],['tension','⚡ 몰입·긴장'],['emotion','🌅 감성 여행'],
+  ['epic','🏆 웅장 성취'],['club','🕺 클럽·스트리트'],['night','🌃 야경·몽환'],['loop','🔁 반복 루프']];
+const soundLabel = (id) => (SOUND_MOODS.find(([i])=>i===id) ?? [null,'미분류'])[1];
+const zState = { q:'', mood:null };
+
+async function viewSounds(){
+  const list = (await getConfig('short_sounds')) ?? [];
+  const kw = zState.q.trim().toLowerCase();
+  const shown = list.filter((s) => (!zState.mood || s.mood===zState.mood)
+                               && (!kw || (s.title||'').toLowerCase().includes(kw)));
+  view(`
+    <div class="between"><h2 class="sec">배경 사운드 ${list.length}곡</h2>
+      <button class="btn btn-sm" onclick="viewSounds()">새로고침</button></div>
+    <div class="card">
+      <p class="muted" style="margin-top:0">숏폼 업로드 화면에서 고를 수 있는 곡 목록이에요.
+        제목·분위기를 고치면 <b>저장</b>을 눌러야 반영됩니다.
+        ⚠️ 직접 제작했거나 사용 허락을 받은 음원만 등록하세요.</p>
+      <input class="input" id="zq" placeholder="곡 제목 검색" value="${esc(zState.q)}" />
+      <div class="filters">
+        <button class="chip ${!zState.mood?'on':''}" data-m="">전체 ${list.length}</button>
+        ${SOUND_MOODS.map(([id,l]) => { const c = list.filter((s)=>s.mood===id).length;
+          return c ? `<button class="chip ${zState.mood===id?'on':''}" data-m="${id}">${l} ${c}</button>` : ''; }).join('')}
+      </div>
+      <div class="list">${shown.map((s) => `
+        <div class="item">
+          <div class="row">
+            <button class="btn btn-sm" data-play="${esc(s.url)}">▶</button>
+            <input class="input grow" data-t="${esc(s.id)}" value="${esc(s.title)}" />
+            <select class="input" data-mo="${esc(s.id)}" style="width:150px;flex:none">
+              ${SOUND_MOODS.map(([id,l]) => `<option value="${id}" ${s.mood===id?'selected':''}>${l}</option>`).join('')}
+            </select>
+            <button class="btn btn-sm btn-danger" data-del="${esc(s.id)}">삭제</button>
+          </div>
+        </div>`).join('')}
+        ${shown.length===0 ? '<div class="empty">조건에 맞는 곡이 없어요</div>' : ''}
+      </div>
+      <button class="btn btn-primary" id="save" style="width:100%;margin-top:14px">수정 내용 저장</button>
+    </div>
+    <audio id="au" style="display:none"></audio>`);
+
+  const q = $('#zq');
+  q.oninput = () => { zState.q = q.value; const p = q.selectionStart; viewSounds().then(()=>{
+    const nq = $('#zq'); nq.focus(); nq.setSelectionRange(p,p); }); };
+  $('#view').querySelectorAll('[data-m]').forEach((b)=> b.onclick = () => { zState.mood = b.dataset.m || null; viewSounds(); });
+  $('#view').querySelectorAll('[data-play]').forEach((b)=> b.onclick = () => {
+    const a = $('#au'); if (a.src === b.dataset.play && !a.paused) { a.pause(); return; }
+    a.src = b.dataset.play; a.play().catch(()=>toast('재생할 수 없는 주소예요', 3000));
+  });
+  $('#view').querySelectorAll('[data-del]').forEach((b)=> b.onclick = async () => {
+    const s = list.find((x)=>x.id===b.dataset.del);
+    if (!confirm(`"${s.title}"을(를) 목록에서 지울까요?\n\n이미 올라간 숏폼의 사운드는 그대로 유지됩니다.`)) return;
+    const err = await setConfig('short_sounds', list.filter((x)=>x.id!==b.dataset.del));
+    toast(err ?? '삭제했어요', err?3500:2200); if(!err) viewSounds();
+  });
+  $('#save').onclick = async (e) => {
+    const next = list.map((s) => {
+      const t = $(`[data-t="${CSS.escape(s.id)}"]`), m = $(`[data-mo="${CSS.escape(s.id)}"]`);
+      return t && m ? { ...s, title: t.value.trim() || s.title, mood: m.value } : s;
+    });
+    e.target.disabled = true; e.target.textContent = '저장 중…';
+    const err = await setConfig('short_sounds', next);
+    e.target.disabled = false; e.target.textContent = '수정 내용 저장';
+    toast(err ?? '저장했어요 — 앱 업로드 화면에 바로 반영돼요', err?3500:2600);
+  };
+}
+
+/* ── app_config 읽기/쓰기 ────────────────────────────────── */
+async function getConfig(key){
+  const { data, error } = await sb.from('app_config').select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return data?.value ?? null;
+}
+async function setConfig(key, value){
+  const { error } = await sb.rpc('admin_set_config', { p_key:key, p_value:value });
+  return error ? rpcErr(error) : null;
+}
+
+/* ── 모달 ────────────────────────────────────────────────── */
+function openModal(html){
+  closeModal();
+  const d = document.createElement('div');
+  d.className = 'backdrop'; d.id = 'bd';
+  d.innerHTML = `<div class="modal">${html}</div>`;
+  d.onclick = (e) => { if (e.target === d) closeModal(); };
+  document.body.appendChild(d);
+}
+function closeModal(){ const d = $('#bd'); if (d) d.remove(); }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+/* ── 부팅 ────────────────────────────────────────────────── */
+async function boot(){
+  const url = localStorage.getItem(LS.url), key = localStorage.getItem(LS.key);
+  if (!url || !key) return renderSetup();
+  sb = window.supabase.createClient(url, key);
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) return renderLogin();
+  me = session.user;
+
+  // 운영자 여부는 화면이 아니라 서버가 판정한다 — 첫 RPC가 곧 권한 검사
+  const { error } = await sb.rpc('admin_overview');
+  if (error) {
+    if ((error.message||'').includes('not_admin')) {
+      await sb.auth.signOut();
+      return renderLogin('이 계정에는 운영자 권한이 없어요.');
+    }
+    renderShell();
+    return view(`<div class="card"><b>서버 연결 문제</b><p class="muted">${esc(rpcErr(error))}</p></div>`);
+  }
+  renderShell(); route();
+}
+boot();
+</script>
+</body>
+</html>
