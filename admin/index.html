@@ -597,7 +597,7 @@ async function viewLines(){
 
 /* ── 9) 팝업스토어 ───────────────────────────────────────── */
 async function viewPopups(){
-  const list = (await getConfig('popups')) ?? [];
+  const list = (await getConfig('popup_stores')) ?? [];
   const today = new Date().toISOString().slice(0,10);
   view(`
     <h2 class="sec">팝업스토어</h2>
@@ -627,7 +627,7 @@ async function viewPopups(){
   $('#view').querySelectorAll('[data-del]').forEach((b)=> b.onclick = async () => {
     const i = Number(b.dataset.del);
     if (!confirm(`"${list[i].name}"을(를) 삭제할까요?`)) return;
-    const err = await setConfig('popups', list.filter((_,x)=>x!==i));
+    const err = await setConfig('popup_stores',list.filter((_,x)=>x!==i));
     toast(err ?? '삭제했어요', err?3500:2200); if(!err) viewPopups();
   });
   const save = $('#save'); if (save) save.onclick = async () => {
@@ -635,7 +635,7 @@ async function viewPopups(){
       start: $(`[data-s="${i}"]`).value.trim(), end: $(`[data-e="${i}"]`).value.trim() }));
     if (next.some((p)=>!/^\d{4}-\d{2}-\d{2}$/.test(p.start)||!/^\d{4}-\d{2}-\d{2}$/.test(p.end)))
       return toast('날짜는 2026-08-01 형식으로 입력해 주세요', 3000);
-    const err = await setConfig('popups', next);
+    const err = await setConfig('popup_stores',next);
     toast(err ?? '저장했어요', err?3500:2200);
   };
 }
