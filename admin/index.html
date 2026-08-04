@@ -161,6 +161,11 @@
 
 const LS = { url:'gabogo.sb.url', key:'gabogo.sb.key' };
 const DEFAULT_URL = 'https://ezqrwvccdluepxlrzhac.supabase.co';
+// 비밀번호 재설정 메일이 돌아올 주소. Supabase → Authentication → URL Configuration →
+// Redirect URLs 에 이 주소가 등록돼 있어야 링크가 열린다.
+const SELF_URL = location.origin + location.pathname;
+// supabase-js가 URL 해시를 소비하기 전에 미리 붙잡아 둔다(복구 링크 판별용)
+const CAME_FROM_RECOVERY = (location.hash || '').includes('type=recovery');
 
 let sb = null;              // supabase 클라이언트
 let me = null;              // 로그인 사용자
@@ -230,12 +235,32 @@ function renderLogin(err){
     <input class="input" id="lp" type="password" autocomplete="current-password" />
     ${err ? `<div class="err">${esc(err)}</div>` : ''}
     <button class="btn btn-primary" id="lgo" style="width:100%;margin-top:16px">로그인</button>
+    <button class="btn" id="forgot" style="width:100%;margin-top:8px">비밀번호를 모르겠어요</button>
     <p class="tiny" style="margin-top:14px">
-      카카오로만 가입한 계정은 여기서 로그인할 수 없어요. 이메일 계정을 운영자로 지정하거나,
-      Supabase 대시보드 → Authentication → Users 에서 비밀번호를 설정해 주세요.
+      카카오로만 가입한 계정은 여기서 로그인할 수 없어요. 이메일로 가입한 운영자 계정을 사용하세요.
     </p>
     <button class="btn btn-sm" id="reset" style="width:100%;margin-top:10px">접속 정보 다시 입력</button>
   </div></div>`;
+
+  // 비밀번호 재설정 메일 — 링크는 이 콘솔로 돌아온다(redirectTo).
+  $('#forgot').onclick = async (e) => {
+    const email = $('#le').value.trim();
+    if (!email) { $('#le').focus(); return renderLogin('먼저 이메일을 입력해 주세요.'); }
+    e.target.disabled = true; e.target.textContent = '메일 보내는 중…';
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SELF_URL });
+    if (error) return renderLogin(
+      (error.message||'').includes('redirect')
+        ? `Supabase → Authentication → URL Configuration → Redirect URLs 에 아래 주소를 추가해 주세요:\n${SELF_URL}`
+        : error.message);
+    app.innerHTML = `<div class="gate"><div class="card">
+      <h1>메일을 보냈어요</h1>
+      <p class="muted"><b>${esc(email)}</b> 으로 비밀번호 재설정 링크를 보냈어요.
+        메일의 링크를 누르면 이 콘솔로 돌아와 새 비밀번호를 정할 수 있어요.</p>
+      <p class="tiny">메일이 안 보이면 스팸함도 확인해 주세요. 링크는 1시간 뒤 만료됩니다.</p>
+      <button class="btn" style="width:100%;margin-top:14px" onclick="renderLogin()">로그인으로 돌아가기</button>
+    </div></div>`;
+  };
+
   const go = async () => {
     const btn = $('#lgo'); btn.disabled = true; btn.textContent = '로그인 중…';
     const { error } = await sb.auth.signInWithPassword({
@@ -247,6 +272,34 @@ function renderLogin(err){
   $('#lgo').onclick = go;
   $('#lp').onkeydown = (e) => { if(e.key==='Enter') go(); };
   $('#reset').onclick = () => { localStorage.removeItem(LS.url); localStorage.removeItem(LS.key); boot(); };
+}
+
+/* ── 2-b) 새 비밀번호 설정 (재설정 메일 링크로 들어온 경우) ── */
+function renderNewPassword(err){
+  app.innerHTML = `
+  <div class="gate"><div class="card">
+    <h1>새 비밀번호 설정</h1>
+    <p class="muted">앞으로 이 비밀번호로 콘솔에 로그인합니다.</p>
+    <label>새 비밀번호 (8자 이상)</label>
+    <input class="input" id="p1" type="password" autocomplete="new-password" />
+    <label>한 번 더 입력</label>
+    <input class="input" id="p2" type="password" autocomplete="new-password" />
+    ${err ? `<div class="err">${esc(err)}</div>` : ''}
+    <button class="btn btn-primary" id="pgo" style="width:100%;margin-top:16px">비밀번호 저장</button>
+  </div></div>`;
+  const go = async () => {
+    const a = $('#p1').value, b = $('#p2').value;
+    if (a.length < 8) return renderNewPassword('8자 이상으로 정해 주세요.');
+    if (a !== b) return renderNewPassword('두 입력이 서로 달라요.');
+    const btn = $('#pgo'); btn.disabled = true; btn.textContent = '저장 중…';
+    const { error } = await sb.auth.updateUser({ password: a });
+    if (error) return renderNewPassword(error.message);
+    history.replaceState(null, '', SELF_URL);   // 주소창에서 토큰 제거
+    toast('비밀번호를 저장했어요');
+    boot();
+  };
+  $('#pgo').onclick = go;
+  $('#p2').onkeydown = (e) => { if (e.key === 'Enter') go(); };
 }
 
 /* ── 3) 셸 ───────────────────────────────────────────────── */
@@ -737,6 +790,11 @@ async function boot(){
   if (!url || !key) return renderSetup();
   sb = window.supabase.createClient(url, key);
   const { data:{ session } } = await sb.auth.getSession();
+
+  // 재설정 메일 링크로 들어온 경우 — 세션은 잡혔지만 비밀번호부터 정해야 한다
+  if (CAME_FROM_RECOVERY && session) return renderNewPassword();
+  if (CAME_FROM_RECOVERY && !session) return renderLogin('링크가 만료됐어요. 다시 요청해 주세요.');
+
   if (!session) return renderLogin();
   me = session.user;
 
