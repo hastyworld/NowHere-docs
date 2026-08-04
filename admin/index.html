@@ -236,11 +236,38 @@ function renderLogin(err){
     ${err ? `<div class="err">${esc(err)}</div>` : ''}
     <button class="btn btn-primary" id="lgo" style="width:100%;margin-top:16px">로그인</button>
     <button class="btn" id="forgot" style="width:100%;margin-top:8px">비밀번호를 모르겠어요</button>
+    <button class="btn btn-sm" id="paste" style="width:100%;margin-top:8px">메일 링크가 localhost로 열렸나요?</button>
     <p class="tiny" style="margin-top:14px">
       카카오로만 가입한 계정은 여기서 로그인할 수 없어요. 이메일로 가입한 운영자 계정을 사용하세요.
     </p>
     <button class="btn btn-sm" id="reset" style="width:100%;margin-top:10px">접속 정보 다시 입력</button>
   </div></div>`;
+
+  // 구제책: Redirect URL 미등록 상태에서 보낸 메일은 Site URL(localhost)로 떨어진다.
+  // 그 주소에 토큰이 그대로 들어 있으므로, 통째로 붙여넣으면 세션을 복원해 준다.
+  $('#paste').onclick = () => {
+    app.innerHTML = `<div class="gate"><div class="card">
+      <h1>재설정 링크 붙여넣기</h1>
+      <p class="muted">열리지 않은 그 페이지의 <b>주소창 전체</b>를 복사해서 아래에 붙여넣으세요.
+        (<code>localhost:3000/#access_token=…</code> 으로 시작하는 긴 주소)</p>
+      <textarea class="input" id="plink" rows="4" placeholder="localhost:3000/#access_token=..." style="resize:vertical"></textarea>
+      <div id="perr"></div>
+      <button class="btn btn-primary" id="pok" style="width:100%;margin-top:14px">비밀번호 설정으로 이동</button>
+      <button class="btn btn-sm" style="width:100%;margin-top:8px" onclick="renderLogin()">돌아가기</button>
+    </div></div>`;
+    $('#pok').onclick = async () => {
+      const raw = $('#plink').value.trim();
+      const h = raw.slice(raw.indexOf('#') + 1);
+      const p = new URLSearchParams(h);
+      const at = p.get('access_token'), rt = p.get('refresh_token');
+      if (!at || !rt) { $('#perr').innerHTML =
+        '<div class="err">주소에서 토큰을 찾지 못했어요. <b>#</b> 뒤까지 포함해 전체를 복사했는지 확인해 주세요.</div>'; return; }
+      const { error } = await sb.auth.setSession({ access_token: at, refresh_token: rt });
+      if (error) { $('#perr').innerHTML =
+        `<div class="err">${esc(error.message)}<br>링크가 만료됐다면 다시 요청해 주세요.</div>`; return; }
+      renderNewPassword();
+    };
+  };
 
   // 비밀번호 재설정 메일 — 링크는 이 콘솔로 돌아온다(redirectTo).
   $('#forgot').onclick = async (e) => {
