@@ -42,6 +42,7 @@
     border-radius:var(--r-md); padding:10px 12px; font-size:14px;
   }
   .input:focus{outline:2px solid var(--primary); outline-offset:-1px}
+  .lbl{display:block; font-size:13px; font-weight:800; margin:14px 0 5px}
   .muted{color:var(--text2); font-size:13px}
   .tiny{color:var(--text3); font-size:12px}
   .row{display:flex; align-items:center; gap:10px}
@@ -332,7 +333,7 @@ function renderNewPassword(err){
 /* ── 3) 셸 ───────────────────────────────────────────────── */
 const TABS = [
   ['dash','대시보드'], ['members','회원'], ['reports','신고'],
-  ['shorts','숏폼'], ['lines','문구'], ['popups','팝업'], ['sounds','사운드'],
+  ['shorts','숏폼'], ['release','업데이트 안내'], ['lines','문구'], ['popups','팝업'], ['sounds','사운드'],
 ];
 
 function renderShell(){
@@ -363,6 +364,7 @@ async function route(){
     else if (tab==='members') await viewMembers();
     else if (tab==='reports') await viewReports();
     else if (tab==='shorts') await viewShorts();
+    else if (tab==='release') await viewRelease();
     else if (tab==='lines') await viewLines();
     else if (tab==='popups') await viewPopups();
     else if (tab==='sounds') await viewSounds();
@@ -644,6 +646,56 @@ async function playShort(id){
       <button class="btn grow" onclick="closeModal()">닫기</button>
     </div>`);
   $('#pdel').onclick = () => delShort(id, s.place || '숏폼');
+}
+
+/* ── 7-B) 업데이트 안내 ──────────────────────────────────── */
+/* 저장하면 아직 못 본 사용자에게 포또 팝업으로 뜬다(앱 재시작 요구 없음). */
+async function viewRelease(){
+  const cur = (await getConfig('release_note')) ?? {};
+  const today = new Date().toISOString().slice(0,10);
+  view(`
+    <h2 class="sec">업데이트 안내</h2>
+    <div class="card">
+      <p class="muted" style="margin-top:0">
+        저장하면 <b>아직 이 안내를 못 본 사용자</b>에게 포또가 설명하는 팝업이 뜹니다.
+        한 번 본 사람에겐 다시 뜨지 않아요. 새 안내를 띄우려면 <b>안내 번호</b>를 바꿔 저장하세요.<br>
+        순서: ① 코드 업데이트 배포 → ② 여기에 안내 작성·저장.
+      </p>
+      <label class="lbl">제목</label>
+      <input class="input" id="rTitle" maxlength="40" placeholder="가보고가 새로워졌어요!"
+             value="${esc(cur.title ?? '')}">
+      <label class="lbl">날짜 (선택)</label>
+      <input class="input" id="rDate" placeholder="${today}" value="${esc(cur.date ?? '')}">
+      <label class="lbl">바뀐 내용 — 한 줄에 하나씩</label>
+      <textarea class="input" id="rItems" rows="7" style="resize:vertical"
+        placeholder="지도를 확대해도 끊기지 않도록 고쳤어요&#10;구글 로그인이 추가됐어요">${
+        esc((cur.items ?? []).join('\n'))}</textarea>
+      <label class="lbl">안내 번호 (이 값이 바뀌면 다시 표시됨)</label>
+      <input class="input" id="rId" value="${esc(cur.id ?? today + '-1')}">
+      <div class="row" style="gap:8px;margin-top:16px">
+        <button class="btn btn-primary" id="rSave" style="flex:1">저장하고 팝업 띄우기</button>
+        <button class="btn" id="rOff">안내 내리기</button>
+      </div>
+    </div>`);
+
+  $('#rSave').onclick = async (e) => {
+    const items = $('#rItems').value.split('\n').map((s)=>s.trim()).filter(Boolean);
+    const id = $('#rId').value.trim();
+    if (!id) { toast('안내 번호를 입력하세요'); return; }
+    if (!items.length) { toast('바뀐 내용을 한 줄 이상 적어주세요'); return; }
+    e.target.disabled = true; e.target.textContent = '저장 중…';
+    const err = await setConfig('release_note', {
+      id, title: $('#rTitle').value.trim() || undefined,
+      date: $('#rDate').value.trim() || undefined, items,
+    });
+    e.target.disabled = false; e.target.textContent = '저장하고 팝업 띄우기';
+    toast(err ?? '저장했어요 — 다음 실행부터 사용자에게 표시돼요', err?3500:2600);
+  };
+  $('#rOff').onclick = async () => {
+    if (!confirm('안내 팝업을 내릴까요?')) return;
+    const err = await setConfig('release_note', {});
+    toast(err ?? '안내를 내렸어요', err?3500:2200);
+  };
 }
 
 /* ── 8) 히어로 문구 ──────────────────────────────────────── */
